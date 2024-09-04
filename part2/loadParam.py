@@ -1,10 +1,10 @@
 import os
 
-HOME_PATH = os.path.expanduser("~")
-JOB_ID = "run2"
-MODEL_NAME = "windowseg"
-DS_PATH = os.path.join(HOME_PATH, "blender/flyingWindows/og/")
-OUT_PATH = os.path.join(HOME_PATH, "outputs/windowseg/")
+HOME_PATH   =   os.path.expanduser("~")
+JOB_ID      =   "run2"
+MODEL_NAME  =   "windowseg"
+DS_PATH     =   "/home/colinbalfour/Documents/RBE474X/Group5_p2/data"
+OUT_PATH    =   "/home/colinbalfour/Documents/RBE474X/Group5_p2/outputs"
 
 JOB_FOLDER = os.path.join(OUT_PATH, JOB_ID)
 TRAINED_MDL_PATH = os.path.join(JOB_FOLDER, "parameters")

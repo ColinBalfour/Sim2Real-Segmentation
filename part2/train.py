@@ -17,6 +17,8 @@ from utils import *
 from dataloader import *
 import pdb
 import utils
+from  torchvision.datasets import Cityscapes
+from torchvision.transforms import ToTensor
 
 # Load the parameters
 from loadParam import *
@@ -33,24 +35,28 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print('device', device)
 
 # Define the dataset size
-dataset = WindowDataset(DS_PATH)
+# dataset = WindowDataset(DS_PATH)
 
 # Split the dataset into train and validation
-dataset_size = len(dataset)
+# dataset_size = len(dataset)
 
-train_size = int(0.9 * dataset_size)
-test_size = dataset_size - train_size
-trainset, valset = torch.utils.data.random_split(dataset, [train_size, test_size])
+# train_size = int(0.9 * dataset_size)
+# test_size = dataset_size - train_size
+# trainset, valset = torch.utils.data.random_split(dataset, [train_size, test_size])
+
+trainset = Cityscapes(DS_PATH, split='train', mode='fine', target_type='semantic', transform=ToTensor(), target_transform=ToTensor())
+valset = Cityscapes(DS_PATH, split='val', mode='fine', target_type='semantic', transform=ToTensor(), target_transform=ToTensor())
     
 trainLoader = torch.utils.data.DataLoader(trainset, BATCH_SIZE, True, num_workers=NUM_WORKERS)
 valLoader = torch.utils.data.DataLoader(valset, BATCH_SIZE, True, num_workers=NUM_WORKERS)
 
+
 # Network and optimzer --------------------------------------------------------------
-model = Network(3, 1)
+model = Network(3, 30)
 model = model.to(device)
 
 # LOSS FUNCTION AND OPTIMIZER
-optimizer = 
+optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
 def shouldLog(batchcount=None):
     if batchcount==None:
@@ -159,7 +165,7 @@ torch.save(model.state_dict(), trainedMdlPath)
 # SCRIPT ---------------------------------------------------------------------------------
 epochs = 100
 
-lossFn = 
+lossFn = nn.CrossEntropyLoss()
 
 for eIndex in range(epochs):
     dp(f"Epoch {eIndex+1}\n")

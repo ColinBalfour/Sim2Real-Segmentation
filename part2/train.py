@@ -50,7 +50,7 @@ model = Network(3, 1)
 model = model.to(device)
 
 # LOSS FUNCTION AND OPTIMIZER
-optimizer = 
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
 
 def shouldLog(batchcount=None):
     if batchcount==None:
@@ -75,7 +75,7 @@ wandb.init(
 #  TRAIN ----------------------------------------------------------------------------
 def train(dataloader, model, loss_fn, optimizer, epochstep):
     
-    # dp('train started')
+    dp('train started')
     model.train()
     epochloss = 0
     for batchcount, (rgb, label) in enumerate(dataloader):
@@ -89,7 +89,7 @@ def train(dataloader, model, loss_fn, optimizer, epochstep):
         pred = model(rgb)
         loss = loss_fn(pred, label)        
         loss.backward()
-        optimizer.step()
+        optimizer.step() 
         
         epochloss += loss.item()
 

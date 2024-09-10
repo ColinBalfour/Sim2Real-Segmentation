@@ -13,15 +13,21 @@ import wandb
 
 # CUSTOM
 from network import *
+from network2 import *
 from utils import *
 from dataloader import *
 import pdb
 import utils
 from  torchvision.datasets import Cityscapes
-from torchvision.transforms import ToTensor
+from torchvision.transforms import ToTensor, Resize
+import torchvision.transforms.functional as F
+from torchvision.models.segmentation import fcn_resnet50
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 # Load the parameters
 from loadParam import *
+
 
 if os.path.exists(JOB_FOLDER):
     shutil.rmtree(JOB_FOLDER)
@@ -32,6 +38,7 @@ os.mkdir(TRAINED_MDL_PATH)
 # DATASET ---------------------------------------------------------------------------
 datatype = torch.float32
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+# device = torch.device('cpu')
 print('device', device)
 
 # Define the dataset size
@@ -44,15 +51,26 @@ print('device', device)
 # test_size = dataset_size - train_size
 # trainset, valset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-trainset = Cityscapes(DS_PATH, split='train', mode='fine', target_type='semantic', transform=ToTensor(), target_transform=ToTensor())
-valset = Cityscapes(DS_PATH, split='val', mode='fine', target_type='semantic', transform=ToTensor(), target_transform=ToTensor())
+class MyTransform:
+    def __init__(self):
+        return
+    def __call__(self, input, target):
+        input = F.to_tensor(input)
+        target = (F.to_tensor(target) * 255).int() #[:3, :, :]
+        return (F.resize(input, [256, 256], interpolation= F.InterpolationMode.NEAREST_EXACT), 
+                F.resize(target, [256, 256], interpolation= F.InterpolationMode.NEAREST_EXACT))
+
+trainset = Cityscapes(DS_PATH, split='train', mode='fine', target_type='semantic', transforms=MyTransform())
+valset = Cityscapes(DS_PATH, split='val', mode='fine', target_type='semantic', transforms=MyTransform())
     
 trainLoader = torch.utils.data.DataLoader(trainset, BATCH_SIZE, True, num_workers=NUM_WORKERS)
 valLoader = torch.utils.data.DataLoader(valset, BATCH_SIZE, True, num_workers=NUM_WORKERS)
 
 
 # Network and optimzer --------------------------------------------------------------
-model = Network(3, 30)
+model = Network2(3, 34)
+# model = torch.hub.load('pytorch/vision:v0.10.0', 'fcn_resnet50', pretrained=True)
+# model = fcn_resnet50(num_classes=3)
 model = model.to(device)
 
 # LOSS FUNCTION AND OPTIMIZER
@@ -92,8 +110,13 @@ def train(dataloader, model, loss_fn, optimizer, epochstep):
         
         optimizer.zero_grad()
         
+        label[label < 0] = 26 # relabel license plate to car
+        # print(torch.max(label))
+        label = label.flatten(1, 2).long()
+
         pred = model(rgb)
-        loss = loss_fn(pred, label)        
+        # print("shapes", pred.shape, label.shape)
+        loss = loss_fn(pred, label)
         loss.backward()
         optimizer.step()
         
@@ -107,7 +130,7 @@ def train(dataloader, model, loss_fn, optimizer, epochstep):
         if batchcount == 0: # only for the first batch every epoch
             wandb_images = []
             for (pred_single, label_single, rgb_single) in zip(pred, label, rgb):
-                combined_image_np = CombineImages(pred_single, label_single, rgb_single)
+                combined_image_np = CombineImages(pred_single, label_single.unsqueeze(-1), rgb_single)
 
                 # Create wandb.Image object and append to the list
                 wandb_images.append(wandb.Image(combined_image_np))
@@ -135,7 +158,10 @@ def val(dataloader, model, loss_fn, epochstep):
             label = label.to(device)
             
             pred = model(rgb)
-            loss = loss_fn(pred, label)       
+            label[label < 0] = 26 # relabel license plate to car
+            # print(torch.max(label))
+            label = label.flatten(1, 2).long()
+            loss = loss_fn(pred, label)
 
             epochloss += loss.item()
         
@@ -146,7 +172,7 @@ def val(dataloader, model, loss_fn, epochstep):
             if batchcount == 0: # only for the first batch every epoch
                 wandb_images = []
                 for (pred_single, label_single, rgb_single) in zip(pred, label, rgb):
-                    combined_image_np = CombineImages(pred_single, label_single, rgb_single)
+                    combined_image_np = CombineImages(pred_single, label_single.unsqueeze(-1), rgb_single)
                     wandb_images.append(wandb.Image(combined_image_np))
 
                 wandb.log(

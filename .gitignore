@@ -168,3 +168,6 @@ gtFine*
 # output stuff
 outputs
 wandb
+
+# models
+*.pth

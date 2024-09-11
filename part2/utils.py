@@ -81,10 +81,24 @@ def CombineImages(pred, label, rgb):
     #     new_pred[y > prob_map] = idx * 8
     #     prob_map[y > prob_map] = y[y > prob_map]
 
-    probabilities = F.softmax(pred, dim=0)
-    predicted_classes = torch.argmax(probabilities, dim=0)
-    new_pred = colorize(predicted_classes.cpu().numpy()) #/ num_classes
-    label = colorize(label)  #/ num_classes
+    # print(pred.shape)
+
+    # probabilities = F.softmax(pred, dim=0)
+    # predicted_classes = torch.argmax(probabilities, dim=0)
+    # new_pred = colorize(predicted_classes.cpu().numpy()) #/ num_classes
+    # label = colorize(label)  #/ num_classes
+    
+    # print(torch.max(pred))
+    # print(torch.max(F.sigmoid(pred)))
+    # print(F.sigmoid(pred).cpu().numpy().shape)
+    # print(np.min(F.sigmoid(pred).cpu().numpy() * 255))
+
+    new_pred = F.sigmoid(pred)
+    new_pred[new_pred > 0.5] = 1
+    new_pred[new_pred <= 0.5] = 0
+    new_pred = cv2.cvtColor(new_pred.cpu().numpy().astype(np.uint8), cv2.COLOR_GRAY2RGB)
+
+    label = cv2.cvtColor(label, cv2.COLOR_GRAY2RGB)
     rgb = np.transpose(rgb, (1, 2, 0))
 
     # print(rgb.shape)

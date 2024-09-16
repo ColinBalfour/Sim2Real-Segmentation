@@ -61,8 +61,11 @@ def colorize(img):
     colorized_img = np.zeros((*img.shape, 3))
 
     # Map each class index to its corresponding color
-    for city_class in classes:
-        colorized_img[img == city_class.id] = city_class.color
+    #for city_class in classes:
+    #    colorized_img[img == city_class.id] = city_class.color
+    colorized_img[img == 1] = [255, 0, 0]
+    colorized_img[img == 2] = [0, 0, 255]
+    colorized_img[img == 3] = [0, 255, 0]
 
     return colorized_img / 255
 
@@ -83,22 +86,24 @@ def CombineImages(pred, label, rgb):
 
     # print(pred.shape)
 
-    # probabilities = F.softmax(pred, dim=0)
-    # predicted_classes = torch.argmax(probabilities, dim=0)
-    # new_pred = colorize(predicted_classes.cpu().numpy()) #/ num_classes
-    # label = colorize(label)  #/ num_classes
+    probabilities = F.softmax(pred, dim=0)
+    predicted_classes = torch.argmax(probabilities, dim=0)
+    new_pred = colorize(predicted_classes.cpu().numpy()) #/ num_classes
+    label = colorize(label)  #/ num_classes
     
     # print(torch.max(pred))
     # print(torch.max(F.sigmoid(pred)))
     # print(F.sigmoid(pred).cpu().numpy().shape)
     # print(np.min(F.sigmoid(pred).cpu().numpy() * 255))
+    
+    
+    # UNCOMMENT FOR SINGLE CLASS SEG 
+    #new_pred = F.sigmoid(pred)
+    #new_pred[new_pred > 0.5] = 1
+    #new_pred[new_pred <= 0.5] = 0
+    #new_pred = cv2.cvtColor(new_pred.cpu().numpy().astype(np.uint8), cv2.COLOR_GRAY2RGB)
 
-    new_pred = F.sigmoid(pred)
-    new_pred[new_pred > 0.5] = 1
-    new_pred[new_pred <= 0.5] = 0
-    new_pred = cv2.cvtColor(new_pred.cpu().numpy().astype(np.uint8), cv2.COLOR_GRAY2RGB)
-
-    label = cv2.cvtColor(label, cv2.COLOR_GRAY2RGB)
+    #label = cv2.cvtColor(label, cv2.COLOR_GRAY2RGB)
     rgb = np.transpose(rgb, (1, 2, 0))
 
     # print(rgb.shape)
@@ -117,3 +122,59 @@ def CombineImages(pred, label, rgb):
     combined_image_np = np.concatenate((new_pred, label, rgb), axis=1)
     combined_image_np = (np.clip(combined_image_np, 0, 1)*255).astype(np.uint8)
     return combined_image_np
+    
+      
+    
+from itertools import permutations
+
+# Order shouldn't matter in instance segmentation 
+def permute_loss(pred_logits, gt_labels, loss_fn):
+    batch_size, num_channels, height, width = pred_logits.size()
+
+    min_loss = float('inf')
+    best_pred_logits = None
+
+    for perm in permutations(range(num_channels)):
+        permuted_pred_logits = pred_logits[:, list(perm), :, :]
+
+        loss = loss_fn(permuted_pred_logits, gt_labels)
+        
+        if loss < min_loss:
+            min_loss = loss
+            best_pred_logits = permuted_pred_logits
+
+    return min_loss, best_pred_logits
+    
+def dice_CE_loss(pred_logits, gt_labels, smooth=1e-6):
+    """
+    Compute Dice Loss given predicted logits and ground truth labels.
+
+    Args:
+        pred_logits (Tensor): Predicted logits of shape (N, C, H, W), where C is the number of classes.
+        gt_labels (Tensor): Ground truth labels of shape (N, H, W), with class indices from 0 to C-1.
+        smooth (float): Smoothing factor to avoid division by zero.
+
+    Returns:
+        Tensor: Dice loss value.
+    """
+    # Apply softmax to get probabilities for each class
+    pred_probs = F.softmax(pred_logits, dim=1)
+
+    # Convert ground truth labels to one-hot encoding
+    N, C, H, W = pred_logits.size()
+    gt_one_hot = torch.zeros(N, C, H, W, device=pred_logits.device)
+    gt_one_hot.scatter_(1, gt_labels.unsqueeze(1), 1)
+
+    # Compute intersection and union
+    intersection = torch.sum(pred_probs * gt_one_hot, dim=(0, 2, 3))
+    union = torch.sum(pred_probs + gt_one_hot, dim=(0, 2, 3)) + smooth
+
+    dice_score = 2. * intersection / union
+    
+    # Background is less important, instances are more important
+    class_weights = torch.tensor([0.1, 1.0, 1.0, 1.0], device=pred_logits.device)
+    dice_score = dice_score * class_weights
+    
+    dice_loss = 1 - dice_score.mean()
+
+    return dice_loss + F.cross_entropy(pred_logits, gt_labels)

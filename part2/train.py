@@ -42,7 +42,7 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 print('device', device)
 
 # Define the dataset size
-dataset = WindowDataset(DS_PATH)
+dataset = WindowDataset(DS_PATH, instance=True)
 
 # Split the dataset into train and validation
 dataset_size = len(dataset)
@@ -68,10 +68,12 @@ valLoader = torch.utils.data.DataLoader(valset, BATCH_SIZE, True, num_workers=NU
 
 
 # Network and optimzer --------------------------------------------------------------
-model = Network2(3, 1)
+model = Network2(3, 4)
 # model = torch.hub.load('pytorch/vision:v0.10.0', 'fcn_resnet50', pretrained=True)
 # model = fcn_resnet50(num_classes=3)
 model = model.to(device)
+#model_path = os.path.join(OUT_PATH, "turing-unet-instance-dice/parameters25.pth")
+#model.load_state_dict(torch.load(model_path, map_location=device))
 
 # LOSS FUNCTION AND OPTIMIZER
 optimizer = torch.optim.Adam(model.parameters(), lr=LR)
@@ -111,12 +113,13 @@ def train(dataloader, model, loss_fn, optimizer, epochstep):
         optimizer.zero_grad()
         
         # label[label < 0] = 26 # relabel license plate to car
-        # # print(torch.max(label))
-        # label = label.flatten(1, 2).long()
+        #print(torch.max(label))
+        label = label.flatten(1, 2).long()
 
         pred = model(rgb)
         # print("shapes", pred.shape, label.shape)
-        loss = loss_fn(pred, label)
+        #loss = loss_fn(pred, label)
+        loss, pred = permute_loss(pred, label, loss_fn)
         loss.backward()
         optimizer.step()
         
@@ -161,8 +164,9 @@ def val(dataloader, model, loss_fn, epochstep):
             pred = model(rgb)
             # label[label < 0] = 26 # relabel license plate to car
             # # print(torch.max(label))
-            # label = label.flatten(1, 2).long()
-            loss = loss_fn(pred, label)
+            label = label.flatten(1, 2).long()
+            #loss = loss_fn(pred, label)
+            loss, pred = permute_loss(pred, label, loss_fn)
 
             epochloss += loss.item()
         
@@ -191,9 +195,10 @@ trainedMdlPath = TRAINED_MDL_PATH + f"test.pth"
 torch.save(model.state_dict(), trainedMdlPath)
 
 # SCRIPT ---------------------------------------------------------------------------------
-epochs = 100
+epochs = 1000
 
-lossFn = nn.BCEWithLogitsLoss()
+#lossFn = nn.CrossEntropyLoss()
+lossFn = dice_CE_loss
 
 for eIndex in range(epochs):
     dp(f"Epoch {eIndex+1}\n")

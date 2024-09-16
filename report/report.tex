@@ -423,7 +423,7 @@ Hyperparameters for the dataset generation:
 Obstruction objects are placed in an "Obstruction" collection, out of the camera view, and then copied into the view. The original window is also done the same. Objects copied in (the obstruction and windows) are in a "window" collection, and are deleted and re-copied every image iteration.
 \begin{figure}[!h]
   \centering
-  \includegraphics[scale=0.1]{blenderGUI.png}
+  \includegraphics[scale=0.1]{./images/blenderGUI.png}
   \caption{Blender GUI for dataset generation}
 \end{figure}
 
@@ -432,53 +432,154 @@ While the dataset generation is slow, and obstruction is not always placed in a 
 Please note that the dataset is not included in the submission. To run the dataset generation script, please make sure output directories in the python file are set correctly.
 
 \subsection{Results}
+Below are some results of the generated dataset:
+\begin{figure}[!h]
+  \centering
+  \includegraphics[scale=0.1]{./images/output_1.png}
+  \caption{Image 1, RGB}
+
+\end{figure}
+
+\begin{figure}[!h]
+
+  \centering
+  \includegraphics[scale=0.1]{./images/instance/output_1.png}
+  \caption{Image 1, Segmentation mask}
+\end{figure}
+
+\begin{figure}[!h]
+  \centering
+  \includegraphics[scale=0.1]{./images/output_131.png}
+  \caption{Image 2, RGB}
+
+\end{figure}
+
+\begin{figure}[!h]
+
+  \centering
+  \includegraphics[scale=0.1]{./images/instance/output_131.png}
+  \caption{Image 2, Segmentation mask}
+\end{figure}
+
+Before training, we generate 10 times this data. The dataset is augmented using random blur, noise, crop, etc. to generate around 50000 images.
 
 \section{Part 2}
-% no \IEEEPARstart
-\subsection{Implementation}
+% 3. Network architecture diagram.
+For this part, we are performing semantic segmentation to find the regions of the image/video that contain the window.
+\subsection {Network architecture}
+The architecture used to train this model is UNET. Below is the diagram for the architecture:
+\begin{figure}[!h]
 
+  \centering
+  \includegraphics[scale=0.1]{./images/UNET_architecture.png}
+  \caption{UNET architecture}
+\end{figure}
+
+\subsection{Implementation}
+% 4. Explain the loss function you used for training.
+The model was trained on the dataset generated in Part 1. We are using the \textbf{cross-entropy} loss function. The hyperparameters used for training are shown in Table 1.
+
+\begin{table}[!t]
+  % increase table row spacing, adjust to taste
+  \renewcommand{\arraystretch}{1.3}
+  % if using array.sty, it might be a good idea to tweak the value of
+  % \extrarowheight as needed to properly center the text within the cells
+  \caption{Hyperparameters for semantic segmentation}
+  \label{table_example}
+  \centering
+  % Some packages, such as MDW tools, offer better commands for making tables
+  % than the plain LaTeX2e tabular which is used here.
+  \begin{tabular}{|c|c|c|}
+    \hline
+    Optimizer      & Learning rate & Batch size \\
+    \hline
+    Adam Optimizer & 1e-4          & 32         \\
+    \hline
+  \end{tabular}
+\end{table}
+
+% 6. Tabulate the hyperparameters you used for training. Learning rate, optimizer, etc.
 
 \subsection{Results}
+Results for the model are in the vdeo "part2.mp4". Below are the loss curve per epoch plot:
+\begin{figure}[!h]
+
+  \centering
+  \includegraphics[scale=0.5]{./images/batchlosstrainsemantic.png}
+  \caption{Training loss curve, batch}
+\end{figure}
+
+\begin{figure}[!h]
+  \centering
+  \includegraphics[scale=0.5]{./images/batchlossvalsemantic.png}
+  \caption{Evaluate loss curve, batch}
+
+\end{figure}
+
+\begin{figure}[!h]
+
+  \centering
+  \includegraphics[scale=0.5]{./images/epochlossvalsemantic.png}
+  \caption{Evaluate loss curve, epoch}
+\end{figure}
+% 5. Explain the failure cases, you may have encountered.
+
+
+% 7. Include the inference results for a few sample images from your validation set and the provided video.
+% 8. Plot the training and validation loss curves per epoch. Explain any observation.
 
 
 % 1. Training loss curve (loss vs epoch count)
 
 \section{Part 3}
-% no \IEEEPARstart
-
-
-\subsection{Implementation}
-In Part 3, we compared the performance of the MLP implemented in Part 1 with a more modern CNN architechture, using PyTorch's inbuilt layers for simplicity.
-The model was trained on the same CIFAR-10 dataset with 40 epochs, also using Adam Optimizer with a learning rate of 1e-4 and a batch size of 32.
-The training loss curve and confusion matrices for the validation set at the first and last epochs are shown in figures 4 - 6.
-
-\subsection{Results}
-The CNN model performed significantly better than the MLP, achieving an accuracy of 56.79\% compared to the MLP's 43.68\%.
-This is due to the CNN's ability to learn spatial features in the images, due to the convolutional layers, where the network
-learns a kernel filter to apply to the image to extract such features useful in classifying images. The MLP, on the other hand,
-does not have such structure, and must learn the features from the raw pixel values, which is much more difficult.
-It also was faster to train, with the CNN taking about 7m 28s to train, compared to the MLP's 8m 36s.
-This is likely due to efficiencies in PyTorch's optimization compared to our custom implementation.
-CNNs can be more efficient than MLPs, due to the convolutional layers reducing dimentionality (and therefore the number of parameters),
-but in this case the CNN also had more layers/parameters, so it's unlikely the network architecture contributed to its efficiency
-
-\section{Part 4}
-% no \IEEEPARstart
-
+% 3. Network architecture diagram.
+For this part, we are performing instance segmentation to find the regions of the image/video that contain the window.
+\subsection {Network architecture}
+The architecture used to train this model is UNET. The architecture diagram for this is depicted in figure 6.
 
 \subsection{Implementation}
-Part 4 implemented custom layers for a Convolutional Nerual Network (CNN), again cuda-optimized with PyTorch.
-Like in Part 1, forward and backward passes were implemented for a Convolutional (Conv2d) layer.
-This included an implementation of a 2d cross-correlation method, which is the main operation performed by the Conv2d layer.
-The forward and backward propogations were implemented for any number of input channels, output channels, kernel size, stride, and batch size.
-The custom implementation was then validated against PyTorch's built-in layers.
+% 4. Explain the loss function you used for training.
+The model was trained on the dataset generated in Part 1. The hyperparameters used for training are the same as in Part 2, and is shown in Table 1. Loss function used is depicted below.
+
+\subsubsection{Loss function}
+For instance segmentation, we trained our network on three different loss functions, each with different goals in mind. Initially, we tried Cross Entropy.
+
+Cross Entropy is a common loss function for classification tasks, and is used to measure the difference between two probability distributions.
+In this case, it is used to measure the difference between the predicted mask and the ground truth mask.
+
+However, this loss function does not take into account the spatial information of the image, and is not ideal for instance segmentation.
+
+Next, we tried Dice Loss. Dice Loss is a loss function that is used to measure the similarity between two samples.
+It is used in this case to measure the similarity between the predicted mask and the ground truth mask.
+
+Dice Loss is better suited for instance segmentation than Cross Entropy, as it is more robust to class imbalance,
+which in this case is due to more single-instance images.
+Finally, we tried a combination of Cross Entropy and Dice Loss. The combined loss function is a weighted sum of the two loss functions.
+
+% 6. Tabulate the hyperparameters you used for training. Learning rate, optimizer, etc.
 
 \subsection{Results}
-All implementation yeilded the same results as with PyTorch's built-in layers. The output is in the jupyter notebook.
+Results for the model are in the vdeo "part3.mp4". Below are the loss curve per epoch plot:
+\begin{figure}[!h]
 
-\section{Part 5}
-% no \IEEEPARstart
-Part 5 was not attempted, despite the custom CNN implementation, due to time constraints, both in the code and in the humans writing it.
+  \centering
+  \includegraphics[scale=0.5]{./images/batchtraininstance.png}
+  \caption{Training loss curve, batch}
+\end{figure}
+
+\begin{figure}[!h]
+  \centering
+  \includegraphics[scale=0.5]{./images/batchevalinstance.png}
+  \caption{Evaluate loss curve, batch}
+
+\end{figure}
+
+\begin{figure}[!h]
+
+  \centering
+  \includegraphics[scale=0.5]{./images/epochvalinstance.png}
+  \caption{Evaluate loss curve, epoch}
+\end{figure}
 
 
 % An example of a floating figure using the graphicx package.

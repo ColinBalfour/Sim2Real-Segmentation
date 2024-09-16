@@ -178,3 +178,64 @@ def dice_CE_loss(pred_logits, gt_labels, smooth=1e-6):
     dice_loss = 1 - dice_score.mean()
 
     return dice_loss + F.cross_entropy(pred_logits, gt_labels)
+
+def combine_test_images(pred, rgb):
+    pred = pred.detach().squeeze()
+    rgb = rgb.detach().squeeze().cpu().numpy()
+
+    # print(pred)
+    # print(np.max(pred))
+    num_classes = pred.shape[0]
+    
+    # UNCOMMENT FOR SINGLE CLASS SEG 
+    new_pred = F.sigmoid(pred)
+    new_pred[new_pred > 0.5] = 1
+    new_pred[new_pred <= 0.5] = 0
+    new_pred = cv2.cvtColor(new_pred.cpu().numpy().astype(np.uint8), cv2.COLOR_GRAY2RGB)
+
+    # label = cv2.cvtColor(label, cv2.COLOR_GRAY2RGB)
+    rgb = np.transpose(rgb, (1, 2, 0))
+
+    # print(rgb.shape)
+    # colormap = np.random.randint(0, 256, size=(num_classes, 3))
+    # new_pred = colormap[predicted_classes.cpu().numpy()]
+    # print('thing', pred.shape, label.shape)
+    # new_pred = 0.299 * pred[0, :, :] + 0.587 * pred[1, :, :] + 0.114 * pred[2, :, :]
+    # label = 0.299 * label[0, :, :] + 0.587 * label[1, :, :] + 0.114 * label[2, :, :]
+
+    # new_pred = pred
+    
+    gray_array = 0.299 * rgb[0, :, :] + 0.587 * rgb[1, :, :] + 0.114 * rgb[2, :, :]
+
+    # Concatenate images horizontally
+    print(pred.shape, new_pred.shape, rgb.shape, gray_array.shape)
+    combined_image_np = np.concatenate((new_pred, rgb), axis=1)
+    combined_image_np = (np.clip(combined_image_np, 0, 1)*255).astype(np.uint8)
+    return combined_image_np
+
+
+def combine_test_images2(pred, rgb):
+    pred = pred.detach().squeeze()
+    rgb = rgb.detach().squeeze().cpu().numpy()
+
+    # print(pred)
+    # print(np.max(pred))
+    num_classes = pred.shape[0]
+
+    probabilities = F.softmax(pred, dim=0)
+    predicted_classes = torch.argmax(probabilities, dim=0)
+    new_pred = colorize(predicted_classes.cpu().numpy()) #/ num_classes
+
+    #label = cv2.cvtColor(label, cv2.COLOR_GRAY2RGB)
+    print(rgb.shape)
+    rgb = np.transpose(rgb, (1, 2, 0))
+
+    # new_pred = pred
+    
+    gray_array = 0.299 * rgb[0, :, :] + 0.587 * rgb[1, :, :] + 0.114 * rgb[2, :, :]
+
+    # Concatenate images horizontally
+    print(pred.shape, new_pred.shape, rgb.shape, gray_array.shape)
+    combined_image_np = np.concatenate((new_pred, rgb), axis=1)
+    combined_image_np = (np.clip(combined_image_np, 0, 1)*255).astype(np.uint8)
+    return combined_image_np

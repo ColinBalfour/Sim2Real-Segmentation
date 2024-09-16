@@ -38,17 +38,20 @@ print('device', device)
 
 # Network and optimzer --------------------------------------------------------------
 def load_model(pth):
-    model = Network2(3, 4)
+    model = Network2(3, 1)
     model.load_state_dict(torch.load(pth, map_location=device))
     return model
 
 
 # model_paths = ['./parameters75.pth', './parameters460.pth', './parameters291.pth', './parameters460.pth']
-model_paths = ['./CE.pth', './dice.pth', './diceCE.pth']
+# model_paths = ['./CE.pth', './dice.pth', './diceCE.pth']
+model_paths = ['./segmentation1.pth']#, './segmentation2.pth']
 models = [load_model(pth).to(device) for pth in model_paths]
 
 cap = cv2.VideoCapture('../test_video.mp4')
-result = cv2.VideoWriter('../output_video.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 15, (512, len(models) * 256))
+w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+print(w, h)
+result = cv2.VideoWriter('../output_video.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 15, (2 * w, len(models) * h))
 final_imgs = []
 while(cap.isOpened()):
     ret, frame = cap.read()
@@ -62,10 +65,17 @@ while(cap.isOpened()):
 
     # convert them to tensors
     rgb = transforms.ToTensor()(im_pil).to(device) # (3, H, W)
-    rgb = F.resize(rgb, [256, 256], interpolation= F.InterpolationMode.NEAREST_EXACT).unsqueeze(0)
-    preds = [model(rgb).detach().squeeze() for model in models]
+    rgb_in = F.resize(rgb, [256, 256], interpolation=F.InterpolationMode.NEAREST_EXACT).unsqueeze(0)
+    print(models[0](rgb_in).detach().shape)
+    preds = [
+        F.resize(
+            model(rgb_in).detach().squeeze(0),
+            [h, w], 
+            interpolation=F.InterpolationMode.NEAREST_EXACT
+        ) for model in models
+    ]
     
-    final_imgs = [utils.combine_test_images2(pred, rgb) for pred in preds]
+    final_imgs = [utils.combine_test_images(pred, rgb) for pred in preds]
     final_img = np.concatenate(final_imgs, axis=0)
     # final_img = final_imgs[0]
     

@@ -1,0 +1,1 @@
+All code files for part3 are contained in part2, as the same network architecture was used for instance segmentation
